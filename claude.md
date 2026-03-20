@@ -37,6 +37,37 @@ Stored in S3: `s3://outreach-newsletter-terraform-state/dev/terraform.tfstate` (
 
 ---
 
+## Running locally
+
+**One-time setup** (from `lambda/`):
+```bash
+pip install boto3
+```
+boto3 is provided by the Lambda runtime in AWS, so it stays out of `requirements.txt`.
+
+Fill in `lambda/.env` with the Bedrock identifiers (get them from Terraform output + AWS CLI):
+```bash
+# from terraform/
+terraform output agent_id
+
+# alias ID
+aws bedrock-agent list-agent-aliases --agent-id <agent_id> \
+  --query 'agentAliasSummaries[?agentAliasName==`live`].agentAliasId' --output text
+```
+
+**Invoke** (from `lambda/`):
+```bash
+# Full run — calls Bedrock and sends a real email
+python invoke_local.py
+
+# Dry run — calls Bedrock, prints HTML to stdout, skips SES
+python invoke_local.py --dry-run
+```
+
+Uses your local AWS credentials (same profile used for Terraform). Both modes make real Bedrock calls and incur cost.
+
+---
+
 ## Manual step after first deploy
 
 Enable the **Web Search** built-in action group on the Bedrock agent — the Terraform AWS provider doesn't support `AMAZON.WebSearch` in its enum yet:
