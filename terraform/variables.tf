@@ -23,7 +23,7 @@ variable "schedule_expression" {
 
 variable "bedrock_model_id" {
   description = "Bedrock foundation model for the agent"
-  default     = "anthropic.claude-sonnet-4-20250514-v1:0"
+  default     = "us.anthropic.claude-sonnet-4-20250514-v1:0"
 }
 
 variable "tags" {

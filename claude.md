@@ -37,6 +37,37 @@ Stored in S3: `s3://outreach-newsletter-terraform-state/dev/terraform.tfstate` (
 
 ---
 
+## Local development setup
+
+Install pre-commit and the Python toolchain once after cloning:
+
+```bash
+pip install pre-commit ruff boto3
+pre-commit install
+```
+
+Pre-commit runs automatically on `git commit`. To run it manually against all files:
+
+```bash
+pre-commit run --all-files
+```
+
+**Hooks that run on every commit:**
+
+| Hook | What it does |
+|---|---|
+| `trailing-whitespace`, `end-of-file-fixer` | Whitespace hygiene |
+| `check-yaml` / `check-json` / `check-toml` | Syntax validation |
+| `detect-private-key` | Blocks accidental secret commits |
+| `terraform_fmt` | Formats all `.tf` files in-place |
+| `terraform_validate` | Validates Terraform config (requires `terraform init`) |
+| `ruff` | Python linting with auto-fix |
+| `ruff-format` | Python formatting (replaces black) |
+
+Ruff is configured in `pyproject.toml` (target: Python 3.12, line length: 100).
+
+---
+
 ## Running locally
 
 **One-time setup** (from `lambda/`):

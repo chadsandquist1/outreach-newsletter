@@ -1,9 +1,11 @@
+#!/usr/bin/env python3
 """Local invocation script for the digest Lambda.
 
 Usage:
     python invoke_local.py           # full run: calls Bedrock + sends email
     python invoke_local.py --dry-run # calls Bedrock, prints HTML, skips email
 """
+
 import argparse
 import os
 import sys
@@ -45,6 +47,7 @@ def main():
 
     result = function.lambda_handler({}, None)
     import json
+
     print("\n--- Lambda result ---")
     print(json.dumps(result, indent=2))
 

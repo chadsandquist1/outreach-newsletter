@@ -47,16 +47,16 @@ resource "aws_iam_role_policy" "bedrock_agent" {
       {
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-        Resource = "arn:aws:bedrock:${local.region}::foundation-model/${var.bedrock_model_id}"
+        Resource = "arn:aws:bedrock:${local.region}::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0"
       }
     ]
   })
 }
 
 resource "aws_bedrockagent_agent" "digest" {
-  agent_name              = var.project_name
-  agent_resource_role_arn = aws_iam_role.bedrock_agent.arn
-  foundation_model        = var.bedrock_model_id
+  agent_name                  = var.project_name
+  agent_resource_role_arn     = aws_iam_role.bedrock_agent.arn
+  foundation_model            = var.bedrock_model_id
   idle_session_ttl_in_seconds = 600
 
   instruction = <<-EOT
@@ -176,9 +176,9 @@ resource "aws_lambda_function" "digest" {
 
   environment {
     variables = {
-      RECIPIENT_EMAIL       = var.recipient_email
-      SENDER_EMAIL          = var.sender_email
-      BEDROCK_AGENT_ID      = aws_bedrockagent_agent.digest.id
+      RECIPIENT_EMAIL        = var.recipient_email
+      SENDER_EMAIL           = var.sender_email
+      BEDROCK_AGENT_ID       = aws_bedrockagent_agent.digest.id
       BEDROCK_AGENT_ALIAS_ID = aws_bedrockagent_agent_alias.live.agent_alias_id
     }
   }
