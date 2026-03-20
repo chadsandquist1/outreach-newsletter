@@ -30,12 +30,12 @@ jobs:
         run: pip install -r requirements.txt -t package/
         working-directory: lambda
 
-      - name: Zip dependencies
-        run: cd package && zip -qr ../lambda.zip .
-        working-directory: lambda
-
-      - name: Add handler to zip
-        run: zip -qg lambda.zip function.py
+      - name: Build lambda.zip
+        run: |
+          zip -q lambda.zip function.py
+          if [ -d package ] && [ -n "$(ls -A package)" ]; then
+            cd package && zip -qr ../lambda.zip . && cd ..
+          fi
         working-directory: lambda
 
       - name: Upload lambda zip
