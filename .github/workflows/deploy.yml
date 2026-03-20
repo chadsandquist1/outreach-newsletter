@@ -1,0 +1,177 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VERSION: "1.10.5"
+  AWS_REGION: "us-east-1"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lambda-build:
+    name: Build Lambda
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies into package/
+        run: pip install -r requirements.txt -t package/
+        working-directory: lambda
+
+      - name: Zip dependencies
+        run: cd package && zip -qr ../lambda.zip .
+        working-directory: lambda
+
+      - name: Add handler to zip
+        run: zip -qg lambda.zip function.py
+        working-directory: lambda
+
+      - name: Upload lambda zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-zip
+          path: lambda/lambda.zip
+          retention-days: 1
+
+  terraform-plan:
+    name: Terraform Plan
+    needs: lambda-build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download lambda zip
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-zip
+          path: lambda/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Append sensitive tfvars
+        run: echo "${{ secrets.TF_VARS_SENSITIVE }}" >> environments/dev.tfvars
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -input=false -var-file=environments/dev.tfvars -out=tfplan
+
+      - name: Get Plan Output
+        id: plan_output
+        run: |
+          PLAN_TEXT=$(terraform show -no-color tfplan 2>&1)
+          echo "plan_text<<PLAN_EOF" >> "$GITHUB_OUTPUT"
+          echo "${PLAN_TEXT:0:65000}" >> "$GITHUB_OUTPUT"
+          echo "PLAN_EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Post Plan to PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            for (const c of comments.filter(c =>
+              c.user.type === 'Bot' && c.body.includes('Terraform Plan Results'))) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: c.id,
+              });
+            }
+            const icon = o => o === 'success' ? '✅' : '❌';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## Terraform Plan Results
+            | Step | Status |
+            |------|--------|
+            | Format | ${icon('${{ steps.fmt.outcome }}')} \`${{ steps.fmt.outcome }}\` |
+            | Validate | ${icon('${{ steps.validate.outcome }}')} \`${{ steps.validate.outcome }}\` |
+            | Plan | ${icon('${{ steps.plan.outcome }}')} \`${{ steps.plan.outcome }}\` |
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`hcl
+            ${{ steps.plan_output.outputs.plan_text }}
+            \`\`\`
+            </details>
+
+            *Run: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*`,
+            });
+
+  terraform-apply:
+    name: Terraform Apply
+    needs: lambda-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download lambda zip
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-zip
+          path: lambda/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Append sensitive tfvars
+        run: echo "${{ secrets.TF_VARS_SENSITIVE }}" >> environments/dev.tfvars
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        run: terraform plan -input=false -var-file=environments/dev.tfvars -out=tfplan && terraform apply -auto-approve -input=false tfplan
