@@ -1,0 +1,5 @@
+# terraform.tfvars
+recipient_email = "wife@example.com"  # Your wife's email
+sender_email    = "digest@example.com" # Your verified sender email
+aws_region      = "us-east-1"
+# schedule_expression = "cron(0 23 ? * SUN *)" # Sundays 6pm CT (default)

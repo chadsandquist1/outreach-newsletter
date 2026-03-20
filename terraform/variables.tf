@@ -1,14 +1,34 @@
 variable "aws_region" {
-  description = "AWS region to deploy resources into"
-  type        = string
-}
-
-variable "environment" {
-  description = "Deployment environment (e.g. dev, prod)"
-  type        = string
+  default = "us-east-1"
 }
 
 variable "project_name" {
-  description = "Name of the project, used as a prefix for resource naming"
+  default = "linkedin-outreach-digest"
+}
+
+variable "recipient_email" {
+  description = "Email address to receive the weekly digest"
   type        = string
+}
+
+variable "sender_email" {
+  description = "Verified SES sender email"
+  type        = string
+}
+
+variable "schedule_expression" {
+  description = "EventBridge schedule (default: Sundays at 6pm CT)"
+  default     = "cron(0 23 ? * SUN *)" # 23:00 UTC = 6:00 PM CT
+}
+
+variable "bedrock_model_id" {
+  description = "Bedrock foundation model for the agent"
+  default     = "anthropic.claude-sonnet-4-20250514-v1:0"
+}
+
+variable "tags" {
+  default = {
+    Project   = "linkedin-outreach-digest"
+    ManagedBy = "terraform"
+  }
 }
