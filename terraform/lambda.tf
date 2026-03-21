@@ -112,6 +112,10 @@ resource "aws_bedrockagent_agent_alias" "live" {
   agent_id         = aws_bedrockagent_agent.digest.id
   agent_alias_name = "live"
   description      = "Production alias"
+
+  lifecycle {
+    replace_triggered_by = [aws_bedrockagent_agent.digest]
+  }
 }
 
 # ─── Lambda ─────────────────────────────────────────────────────────────────────
