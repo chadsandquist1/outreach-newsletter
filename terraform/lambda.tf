@@ -45,9 +45,12 @@ resource "aws_iam_role_policy" "bedrock_agent" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-        Resource = "arn:aws:bedrock:${local.region}::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0"
+        Effect = "Allow"
+        Action = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+        Resource = [
+          "arn:aws:bedrock:${local.region}:${local.account_id}:inference-profile/us.anthropic.claude-sonnet-4-6",
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-6"
+        ]
       }
     ]
   })
@@ -166,6 +169,7 @@ data "archive_file" "lambda" {
   type        = "zip"
   source_dir  = "${path.module}/../lambda"
   output_path = "${path.module}/../lambda/dist/function.zip"
+  excludes    = [".venv", "__pycache__", ".env", "dist", "invoke_local.py"]
 }
 
 resource "aws_lambda_function" "digest" {
@@ -184,6 +188,7 @@ resource "aws_lambda_function" "digest" {
       SENDER_EMAIL           = var.sender_email
       BEDROCK_AGENT_ID       = aws_bedrockagent_agent.digest.id
       BEDROCK_AGENT_ALIAS_ID = aws_bedrockagent_agent_alias.live.agent_alias_id
+      BEDROCK_READ_TIMEOUT   = var.bedrock_read_timeout
     }
   }
 }

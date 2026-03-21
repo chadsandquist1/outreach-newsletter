@@ -23,7 +23,12 @@ variable "schedule_expression" {
 
 variable "bedrock_model_id" {
   description = "Bedrock foundation model for the agent"
-  default     = "us.anthropic.claude-sonnet-4-20250514-v1:0"
+  default     = "us.anthropic.claude-sonnet-4-6"
+}
+
+variable "bedrock_read_timeout" {
+  description = "Read timeout in seconds for Bedrock agent invocation"
+  default     = "180"
 }
 
 variable "tags" {
